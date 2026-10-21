@@ -82,7 +82,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <LocateButton />
             )}
           </div>
-          <SellerList sellers={p.sellers} hasCenter={!!center} />
+          <SellerList sellers={p.sellers} maybeShops={p.maybeShops} center={center} radiusKm={center && sp.r && +sp.r > 0 ? +sp.r : null} />
         </section>
 
         {p.category && (

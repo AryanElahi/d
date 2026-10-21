@@ -46,3 +46,11 @@ export function place(mall: string | null, floor: string | null, unit: string | 
 export function mapsUrl(lat: number, lon: number, android: boolean): string {
   return android ? `geo:${lat},${lon}?q=${lat},${lon}` : `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 }
+
+// Compact price for map pins: «۲.۵م», «۸۵۰ه».
+export function shortToman(n: number | null | undefined): string {
+  if (n == null) return "؟";
+  if (n >= 1e9) return `${toFaDigits(+(n / 1e9).toFixed(1))}میلیارد`;
+  if (n >= 1e6) return `${toFaDigits(+(n / 1e6).toFixed(n >= 1e8 ? 0 : 1))}م`;
+  return `${toFaDigits(Math.round(n / 1e3))}ه`;
+}

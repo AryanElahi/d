@@ -184,6 +184,7 @@ export function SearchApp({ areas }: { areas: string[] }) {
                     p.set("lat", String(data.center.lat));
                     p.set("lon", String(data.center.lon));
                     p.set("place", data.center.label);
+                    if (data.filters.radiusKm) p.set("r", String(data.filters.radiusKm));
                   }
                   return <ResultCard key={h.id} hit={h} href={`/product/${h.id}?${p}`} />;
                 })}

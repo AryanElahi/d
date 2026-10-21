@@ -1,12 +1,20 @@
 "use client";
 
-import { Building2, Clock, MapPin, Navigation, Phone, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Building2, Clock, List, Map as MapIcon, MapPin, Navigation, Phone, ShieldCheck } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useCallback, useMemo, useState } from "react";
 import { daysAgo, distance, place, priceTone, toman, type Tone } from "@/lib/format";
 import type { HoursState } from "@/lib/hours";
 import { toFaDigits } from "@/lib/normalize";
-import type { Seller, Warranty } from "@/lib/product";
+import type { Center, MaybeShop, Seller, Warranty } from "@/lib/product";
 import { MapLink } from "./MapLink";
+import type { MapSelection } from "./SellerMap";
+
+// Leaflet touches window: client-only.
+const SellerMap = dynamic(() => import("./SellerMap"), {
+  ssr: false,
+  loading: () => <div className="h-[55vh] min-h-72 animate-pulse rounded-2xl bg-neutral-200" />,
+});
 
 type SortKey = "price" | "distance" | "open";
 
@@ -32,9 +40,20 @@ function warrantyText(w: Warranty): string | null {
   return w.period_months ? `گارانتی ${toFaDigits(w.period_months)} ماهه ${w.provider}` : `گارانتی: ${w.provider}`;
 }
 
-export function SellerList({ sellers, hasCenter }: { sellers: Seller[]; hasCenter: boolean }) {
-  const [sort, setSort] = useState<SortKey>(hasCenter ? "distance" : "price");
+type Props = { sellers: Seller[]; maybeShops: MaybeShop[]; center: Center | null; radiusKm: number | null };
+
+export function SellerList({ sellers, maybeShops, center, radiusKm }: Props) {
+  const [view, setView] = useState<"list" | "map">("list");
+  const [sort, setSort] = useState<SortKey>(center ? "distance" : "price");
   const [mall, setMall] = useState<string | null>(null);
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const [showMaybe, setShowMaybe] = useState(false);
+
+  const outside = useCallback(
+    (s: Seller) => radiusKm != null && s.distanceKm != null && s.distanceKm > radiusKm,
+    [radiusKm],
+  );
+  const inside = radiusKm != null ? sellers.filter((s) => !outside(s)).length : null;
 
   const malls = useMemo(() => {
     const m = new Map<string, Seller[]>();
@@ -42,25 +61,61 @@ export function SellerList({ sellers, hasCenter }: { sellers: Seller[]; hasCente
     return [...m.entries()].filter(([, ss]) => ss.length >= 2).sort((a, b) => b[1].length - a[1].length);
   }, [sellers]);
 
-  const shown = useMemo(() => {
-    const list = mall ? sellers.filter((s) => s.mall === mall) : [...sellers];
+  const sorted = useMemo(() => {
+    const list = [...sellers];
     const byPrice = (a: Seller, b: Seller) => (a.price ?? Infinity) - (b.price ?? Infinity);
     const byDist = (a: Seller, b: Seller) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity);
-    if (sort === "price") list.sort(byPrice);
+    if (sort === "price") list.sort((a, b) => +outside(a) - +outside(b) || byPrice(a, b));
     if (sort === "distance") list.sort((a, b) => byDist(a, b) || byPrice(a, b));
-    if (sort === "open") list.sort((a, b) => OPEN_RANK[a.hours.state] - OPEN_RANK[b.hours.state] || byPrice(a, b));
+    if (sort === "open") list.sort((a, b) => +outside(a) - +outside(b) || OPEN_RANK[a.hours.state] - OPEN_RANK[b.hours.state] || byPrice(a, b));
     return list;
-  }, [sellers, sort, mall]);
+  }, [sellers, sort, outside]);
+
+  const shown = mall ? sorted.filter((s) => s.mall === mall) : offerId && view === "map" ? sorted.filter((s) => s.offerId === offerId) : sorted;
+
+  const selection: MapSelection = mall ? { mall } : offerId ? { offerId } : null;
+  const onSelect = useCallback((sel: MapSelection) => {
+    if (sel && "mall" in sel) {
+      setMall((m) => (m === sel.mall ? null : sel.mall));
+      setOfferId(null);
+    } else if (sel) {
+      setOfferId((o) => (o === sel.offerId ? null : sel.offerId));
+      setMall(null);
+    }
+  }, []);
 
   const cheapest = Math.min(...sellers.map((s) => s.price ?? Infinity));
   const tabs: [SortKey, string][] = [
-    ...(hasCenter ? ([["distance", "نزدیک‌ترین"]] as [SortKey, string][]) : []),
+    ...(center ? ([["distance", "نزدیک‌ترین"]] as [SortKey, string][]) : []),
     ["price", "ارزان‌ترین"],
     ["open", "اول بازها"],
   ];
 
   return (
     <section>
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-xl bg-neutral-200/60 p-1 text-sm">
+        {([["list", "فهرست", List], ["map", "نقشه", MapIcon]] as const).map(([k, label, Icon]) => (
+          <button
+            key={k}
+            onClick={() => {
+              setView(k);
+              setOfferId(null);
+            }}
+            className={`flex items-center justify-center gap-1.5 rounded-lg py-1.5 ${view === k ? "bg-white font-semibold shadow-sm" : ""}`}
+          >
+            <Icon className="size-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {inside != null && (
+        <p className="mb-3 text-xs text-neutral-600">
+          {toFaDigits(inside)} فروشنده در شعاع {distance(radiusKm)} از {center?.label}
+          {inside < sellers.length && `؛ ${toFaDigits(sellers.length - inside)} فروشنده دیگر بیرون از این محدوده`}
+        </p>
+      )}
+
       {malls.length > 0 && (
         <div className="mb-3">
           <h3 className="mb-2 text-xs font-semibold text-neutral-500">یک مراجعه، چند گزینه</h3>
@@ -71,7 +126,7 @@ export function SellerList({ sellers, hasCenter }: { sellers: Seller[]; hasCente
               return (
                 <button
                   key={name}
-                  onClick={() => setMall(active ? null : name)}
+                  onClick={() => onSelect({ mall: name })}
                   className={`shrink-0 rounded-xl px-3 py-2 text-right text-xs ring-1 ${active ? "bg-teal-600 text-white ring-teal-600" : "bg-white ring-black/10"}`}
                 >
                   <span className="flex items-center gap-1 font-semibold"><Building2 className="size-3.5" />{name}</span>
@@ -85,33 +140,56 @@ export function SellerList({ sellers, hasCenter }: { sellers: Seller[]; hasCente
         </div>
       )}
 
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex gap-1 rounded-xl bg-neutral-200/60 p-1 text-xs">
-          {tabs.map(([k, label]) => (
-            <button key={k} onClick={() => setSort(k)} className={`rounded-lg px-3 py-1.5 ${sort === k ? "bg-white font-semibold shadow-sm" : ""}`}>
-              {label}
-            </button>
-          ))}
+      {view === "map" && (
+        <div className="mb-3">
+          <SellerMap
+            sellers={sellers}
+            maybeShops={maybeShops}
+            showMaybe={showMaybe}
+            center={center}
+            radiusKm={radiusKm}
+            selection={selection}
+            onSelect={onSelect}
+          />
+          <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+            <input type="checkbox" checked={showMaybe} onChange={(e) => setShowMaybe(e.target.checked)} className="accent-teal-600" />
+            نمایش فروشگاه‌هایی که «ممکن است داشته باشند» (نقطه خاکستری)
+          </label>
+          {!selection && <p className="mt-2 text-xs text-neutral-500">روی یک پین یا پاساژ بزنید تا فروشنده‌هایش اینجا بیاید.</p>}
         </div>
-        <span className="text-xs text-neutral-500">{toFaDigits(shown.length)} فروشنده</span>
-      </div>
+      )}
 
-      <ul className="space-y-3">
-        {shown.map((s) => (
-          <SellerCard key={s.offerId} s={s} cheapest={s.price != null && s.price === cheapest} />
-        ))}
-      </ul>
+      {(view === "list" || selection) && (
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex gap-1 rounded-xl bg-neutral-200/60 p-1 text-xs">
+              {tabs.map(([k, label]) => (
+                <button key={k} onClick={() => setSort(k)} className={`rounded-lg px-3 py-1.5 ${sort === k ? "bg-white font-semibold shadow-sm" : ""}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-neutral-500">{toFaDigits(shown.length)} فروشنده</span>
+          </div>
+
+          <ul className="space-y-3">
+            {shown.map((s) => (
+              <SellerCard key={s.offerId} s={s} cheapest={s.price != null && s.price === cheapest} outside={outside(s)} />
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
 
-function SellerCard({ s, cheapest }: { s: Seller; cheapest: boolean }) {
+function SellerCard({ s, cheapest, outside }: { s: Seller; cheapest: boolean; outside: boolean }) {
   const tone = priceTone(s.priceChangedAt);
   const loc = place(s.mall, s.floor, s.unit);
   const w = warrantyText(s.warranty);
 
   return (
-    <li className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5">
+    <li className={`rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5 ${outside ? "opacity-75" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h4 className="truncate text-sm font-bold">{s.shopName}</h4>
@@ -144,7 +222,10 @@ function SellerCard({ s, cheapest }: { s: Seller; cheapest: boolean }) {
 
       <div className="mt-2 space-y-1 text-xs">
         {s.distanceKm != null && (
-          <p className="flex items-center gap-1.5 text-neutral-700"><MapPin className="size-3.5" />{distance(s.distanceKm)} فاصله</p>
+          <p className="flex items-center gap-1.5 text-neutral-700">
+            <MapPin className="size-3.5" />{distance(s.distanceKm)} فاصله
+            {outside && <span className="rounded-full bg-neutral-100 px-1.5 text-[10px] text-neutral-500">بیرون از محدوده انتخابی</span>}
+          </p>
         )}
         <p className={`flex items-center gap-1.5 ${HOURS_TONE[s.hours.state]}`}>
           <Clock className="size-3.5" />
