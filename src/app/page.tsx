@@ -1,8 +1,9 @@
-export default function Home() {
-  return (
-    <main className="mx-auto max-w-md p-4">
-      <h1 className="text-xl font-bold">خریدیار</h1>
-      <p className="mt-2 text-sm text-neutral-600">دستیار خرید حضوری از فروشگاه‌ها و پاساژهای تهران</p>
-    </main>
-  );
+import { SearchApp } from "@/components/SearchApp";
+import { pool } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const { rows } = await pool.query<{ name: string }>("SELECT name FROM areas ORDER BY shop_count DESC, name");
+  return <SearchApp areas={rows.map((r) => r.name)} />;
 }

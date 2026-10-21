@@ -32,9 +32,22 @@ async function load(file: string, table: string, map: (r: Record<string, string>
   console.log();
 }
 
-function hasDeclaredHours(h: Record<string, { status: string }> | null) {
-  return !!h && Object.values(h).some((d) => d?.status === "declared");
+type Day = { status: string; shifts: { start_time: string; end_time: string }[] };
+
+// 00:00-00:00 "declared" shifts are placeholders, not real hours.
+function hasRealHours(h: Record<string, Day> | null) {
+  return !!h && Object.values(h).some((d) => d?.status === "declared" && d.shifts.some((s) => s.start_time !== s.end_time));
 }
+
+// Street/bazaar names people say, mapped to the dataset's location_label.
+const AREA_ALIASES: Record<string, string> = {
+  "جمهوری": "شیخ هادی",
+  "لاله زار": "فردوسی",
+  "منوچهری": "فردوسی",
+  "استانبول": "فردوسی",
+  "توپخانه": "فردوسی",
+  "مجلس": "بهارستان",
+};
 
 async function main() {
   await db.connect();
@@ -62,7 +75,7 @@ async function main() {
       ...parseAddress(r.address),
       torobpay: pay.length ? providers.includes("ترب‌پی") : null,
       installment_providers: providers.filter((p) => p !== "ترب‌پی"),
-      has_hours: hasDeclaredHours(hours),
+      has_hours: hasRealHours(hours),
       is_real_name: !!(nil(r.instagram) || nil(r.website_url)),
       categories_norm: normalizeFa(cats.join(" | ")),
     };
@@ -74,6 +87,7 @@ async function main() {
     title_norm: normalizeFa(`${r.persian_title} ${nil(r.model) ?? ""} ${nil(r.brand_name) ?? ""}`),
     brand: nil(r.brand_name),
     category: nil(r.category_name),
+    category_norm: normalizeFa(r.category_name),
     model: nil(r.model),
     image_urls: json(r.image_urls),
     specs: json(r.specs),
@@ -98,7 +112,9 @@ async function main() {
   );
   for (const a of rows)
     await db.query(`INSERT INTO areas VALUES ($1,$2,$3,$4,$5)`, [a.name, normalizeFa(a.name), a.lat, a.lon, a.shop_count]);
-  console.log(`areas: ${rows.length}`);
+  for (const [alias, label] of Object.entries(AREA_ALIASES))
+    await db.query(`INSERT INTO areas SELECT $1, $2, lat, lon, shop_count FROM areas WHERE name = $3`, [alias, normalizeFa(alias), label]);
+  console.log(`areas: ${rows.length} + ${Object.keys(AREA_ALIASES).length} aliases`);
 
   await db.query(readFileSync("db/indexes.sql", "utf8"));
   console.log("indexes done");

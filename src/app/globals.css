@@ -10,3 +10,6 @@ body {
   color: var(--foreground);
   font-family: Vazirmatn, system-ui, sans-serif;
 }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
