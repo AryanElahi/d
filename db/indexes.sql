@@ -1,5 +1,5 @@
 CREATE INDEX products_title_trgm ON products USING gin (title_norm gin_trgm_ops);
-CREATE INDEX products_category ON products (category_norm);
+CREATE INDEX products_category ON products (category);
 CREATE INDEX products_brand ON products (brand);
 CREATE INDEX offers_seller_trgm ON offers USING gin (seller_norm gin_trgm_ops);
 CREATE INDEX offers_product ON offers (product_id, price_toman);

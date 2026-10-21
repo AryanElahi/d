@@ -1,12 +1,16 @@
 "use client";
 
-import { Building2, Clock, List, Map as MapIcon, MapPin, Navigation, Phone, ShieldCheck } from "lucide-react";
+import { BellRing, Building2, Clock, List, Map as MapIcon, MapPin, MessageCircleQuestion, Navigation, Phone, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { daysAgo, distance, place, priceTone, toman, type Tone } from "@/lib/format";
 import type { HoursState } from "@/lib/hours";
 import { toFaDigits } from "@/lib/normalize";
+import type { Tracked } from "@/lib/followup";
+import { STATUS_LABEL, telHref, type Status } from "@/lib/message";
 import type { Center, MaybeShop, Seller, Warranty } from "@/lib/product";
+import { FollowUpSheet } from "./FollowUpSheet";
+import { useTracked } from "./useTracked";
 import { MapLink } from "./MapLink";
 import type { MapSelection } from "./SellerMap";
 
@@ -40,9 +44,11 @@ function warrantyText(w: Warranty): string | null {
   return w.period_months ? `گارانتی ${toFaDigits(w.period_months)} ماهه ${w.provider}` : `گارانتی: ${w.provider}`;
 }
 
-type Props = { sellers: Seller[]; maybeShops: MaybeShop[]; center: Center | null; radiusKm: number | null };
+type Props = { sellers: Seller[]; maybeShops: MaybeShop[]; center: Center | null; radiusKm: number | null; productTitle: string };
 
-export function SellerList({ sellers, maybeShops, center, radiusKm }: Props) {
+export function SellerList({ sellers, maybeShops, center, radiusKm, productTitle }: Props) {
+  const { items: tracked } = useTracked();
+  const trackedBy = useMemo(() => new Map((tracked ?? []).map((t) => [t.offerId, t])), [tracked]);
   const [view, setView] = useState<"list" | "map">("list");
   const [sort, setSort] = useState<SortKey>(center ? "distance" : "price");
   const [mall, setMall] = useState<string | null>(null);
@@ -174,7 +180,14 @@ export function SellerList({ sellers, maybeShops, center, radiusKm }: Props) {
 
           <ul className="space-y-3">
             {shown.map((s) => (
-              <SellerCard key={s.offerId} s={s} cheapest={s.price != null && s.price === cheapest} outside={outside(s)} />
+              <SellerCard
+                key={s.offerId}
+                s={s}
+                cheapest={s.price != null && s.price === cheapest}
+                outside={outside(s)}
+                tracked={trackedBy.get(s.offerId)}
+                productTitle={productTitle}
+              />
             ))}
           </ul>
         </>
@@ -183,7 +196,17 @@ export function SellerList({ sellers, maybeShops, center, radiusKm }: Props) {
   );
 }
 
-function SellerCard({ s, cheapest, outside }: { s: Seller; cheapest: boolean; outside: boolean }) {
+type CardProps = { s: Seller; cheapest: boolean; outside: boolean; tracked?: Tracked; productTitle: string };
+
+const TRACK_TONE: Partial<Record<Status, string>> = {
+  confirmed: "bg-emerald-50 text-emerald-900 ring-emerald-200",
+  unavailable: "bg-rose-50 text-rose-900 ring-rose-200",
+  price_changed: "bg-amber-50 text-amber-900 ring-amber-200",
+  bought: "bg-teal-50 text-teal-900 ring-teal-200",
+};
+
+function SellerCard({ s, cheapest, outside, tracked, productTitle }: CardProps) {
+  const [sheet, setSheet] = useState(false);
   const tone = priceTone(s.priceChangedAt);
   const loc = place(s.mall, s.floor, s.unit);
   const w = warrantyText(s.warranty);
@@ -215,9 +238,19 @@ function SellerCard({ s, cheapest, outside }: { s: Seller; cheapest: boolean; ou
 
       {s.report && (
         <p className="mt-2 rounded-lg bg-sky-50 px-2 py-1 text-xs text-sky-900">
-          گزارش کاربر · {daysAgo(s.report.at)}: {REPORT[s.report.status] ?? s.report.status}
+          گزارش کاربر · {daysAgo(s.report.at)}: {STATUS_LABEL[s.report.status as Status] ?? s.report.status}
           {s.report.price != null && ` (${toman(s.report.price)})`}
         </p>
+      )}
+
+      {tracked && (
+        <button
+          onClick={() => setSheet(true)}
+          className={`mt-2 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs ring-1 ${TRACK_TONE[tracked.status] ?? "bg-sky-50 text-sky-900 ring-sky-200"}`}
+        >
+          <span className="flex items-center gap-1.5"><BellRing className="size-3.5" />پیگیری شما: {STATUS_LABEL[tracked.status]}{tracked.reportedPrice != null && ` (${toman(tracked.reportedPrice)})`}</span>
+          <span className="font-semibold">{tracked.status === "unavailable" || tracked.status === "price_changed" ? "جایگزین‌ها" : "ثبت نتیجه"}</span>
+        </button>
       )}
 
       <div className="mt-2 space-y-1 text-xs">
@@ -247,27 +280,36 @@ function SellerCard({ s, cheapest, outside }: { s: Seller; cheapest: boolean; ou
 
       {s.sellerTitle && <p className="mt-2 line-clamp-1 text-[11px] text-neutral-400">عنوان فروشنده: {s.sellerTitle}</p>}
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
         <MapLink lat={s.lat} lon={s.lon} className="flex items-center justify-center gap-1 rounded-xl bg-teal-600 py-2 font-medium text-white">
           <Navigation className="size-3.5" />مسیریابی
         </MapLink>
+        <button onClick={() => setSheet(true)} className="flex items-center justify-center gap-1 rounded-xl py-2 font-medium text-teal-700 ring-1 ring-teal-600">
+          <MessageCircleQuestion className="size-3.5" />{tracked ? "پیگیری" : "استعلام"}
+        </button>
         {s.phone ? (
-          <a href={`tel:${s.phone}`} className="flex flex-col items-center justify-center rounded-xl py-1 ring-1 ring-teal-600 text-teal-700">
+          <a href={telHref(s.phone)} className="flex flex-col items-center justify-center rounded-xl py-1 ring-1 ring-black/10">
             <span className="flex items-center gap-1 font-medium"><Phone className="size-3.5" />تماس</span>
             <span className="text-[10px] text-neutral-400">شماره نمونه</span>
           </a>
         ) : (
-          <span className="flex items-center justify-center rounded-xl py-2 text-neutral-400 ring-1 ring-black/10">تماس ثبت نشده</span>
+          <span className="flex items-center justify-center rounded-xl py-2 text-neutral-400 ring-1 ring-black/10">بی‌شماره</span>
         )}
       </div>
+
+      {sheet && (
+        <FollowUpSheet
+          open
+          onClose={() => setSheet(false)}
+          offerId={s.offerId}
+          shopName={s.shopName}
+          phone={s.phone}
+          price={s.price}
+          productTitle={productTitle}
+          status={tracked?.status}
+        />
+      )}
     </li>
   );
 }
 
-const REPORT: Record<string, string> = {
-  contacted: "پیام داده شد",
-  confirmed: "موجودی تأیید شد",
-  unavailable: "ناموجود بود",
-  price_changed: "قیمت فرق داشت",
-  bought: "خرید انجام شد",
-};

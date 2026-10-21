@@ -8,6 +8,7 @@ import { toParams } from "@/lib/query";
 import type { SearchInput, SearchResult } from "@/lib/search";
 import { FilterSheet } from "./FilterSheet";
 import { ResultCard, ResultCardSkeleton } from "./ResultCard";
+import { TrackLink } from "./TrackLink";
 
 const EXAMPLES = [
   "دوربین مدار بسته داهوا نزدیک جمهوری",
@@ -91,9 +92,12 @@ export function SearchApp({ areas }: { areas: string[] }) {
   return (
     <div className="mx-auto min-h-dvh max-w-md pb-10">
       <header className="sticky top-0 z-20 bg-[var(--background)]/95 px-4 pb-3 pt-4 backdrop-blur">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h1 className="text-lg font-extrabold text-teal-700">خریدیار</h1>
-          <span className="text-xs text-neutral-500">دستیار خرید حضوری تهران</span>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-extrabold text-teal-700">خریدیار</h1>
+            <span className="text-xs text-neutral-500">دستیار خرید حضوری تهران</span>
+          </div>
+          <TrackLink />
         </div>
         <form
           onSubmit={(e) => {

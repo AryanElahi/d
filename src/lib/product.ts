@@ -57,14 +57,14 @@ export type ProductPage = {
   maybeShopsTotal: number;
 };
 
-const VALID_PRICE = "o.price_toman BETWEEN 1000 AND 100000000000";
+export const VALID_PRICE = "o.price_toman BETWEEN 1000 AND 100000000000";
 const MAYBE_RADIUS_KM = 3;
 
-function distSql(lat: string, lon: string) {
+export function distSql(lat: string, lon: string) {
   return `6371 * 2 * asin(sqrt(power(sin(radians(s.lat - ${lat}) / 2), 2) + cos(radians(${lat})) * cos(radians(s.lat)) * power(sin(radians(s.lon - ${lon}) / 2), 2)))`;
 }
 
-const phoneOf = (contacts: { channel: string; display_number?: string }[] | null) =>
+export const phoneOf = (contacts: { channel: string; display_number?: string }[] | null) =>
   contacts?.find((c) => c.channel === "phone")?.display_number ?? null;
 
 export async function getProduct(id: string, center: Center | null): Promise<ProductPage | null> {
@@ -87,7 +87,9 @@ export async function getProduct(id: string, center: Center | null): Promise<Pro
      FROM offers o
      JOIN shops s ON s.shop_id = o.shop_id
      LEFT JOIN LATERAL (
-       SELECT status, reported_price, created_at FROM user_reports WHERE offer_id = o.offer_id ORDER BY created_at DESC LIMIT 1
+       SELECT status, reported_price, created_at FROM user_reports
+       WHERE offer_id = o.offer_id AND status IN ('confirmed','unavailable','price_changed','bought') -- outcomes only, not personal bookkeeping
+       ORDER BY created_at DESC LIMIT 1
      ) r ON true
      WHERE o.product_id = $1`,
     params,

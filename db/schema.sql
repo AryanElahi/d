@@ -64,10 +64,14 @@ CREATE TABLE IF NOT EXISTS user_reports (
   id bigserial PRIMARY KEY,
   device_id text NOT NULL,
   offer_id text NOT NULL,
-  status text NOT NULL CHECK (status IN ('contacted','confirmed','unavailable','price_changed','bought')),
+  status text NOT NULL,
   reported_price bigint,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE user_reports DROP CONSTRAINT IF EXISTS user_reports_status_check;
+ALTER TABLE user_reports ADD CONSTRAINT user_reports_status_check
+  CHECK (status IN ('saved','contacted','confirmed','unavailable','price_changed','bought','dismissed'));
+CREATE INDEX IF NOT EXISTS user_reports_device ON user_reports (device_id, offer_id, created_at DESC);
 
 -- Open now? NULL when hours are unknown. 00:00-00:00 shifts are empty second-shift slots and are skipped.
 CREATE OR REPLACE FUNCTION shop_open_at(h jsonb, ts timestamptz) RETURNS boolean AS $$

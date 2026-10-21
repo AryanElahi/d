@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LocateButton } from "@/components/LocateButton";
 import { SellerList } from "@/components/SellerList";
+import { TrackLink } from "@/components/TrackLink";
 import { MapLink } from "@/components/MapLink";
 import { daysAgo, distance, place, toman } from "@/lib/format";
 import { toFaDigits } from "@/lib/normalize";
@@ -37,7 +38,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
     <div className="mx-auto min-h-dvh max-w-md pb-16">
       <header className="sticky top-0 z-20 flex items-center gap-2 bg-[var(--background)]/95 px-4 py-3 backdrop-blur">
         <BackLink />
-        <h1 className="truncate text-sm font-semibold">{p.title}</h1>
+        <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">{p.title}</h1>
+        <TrackLink />
       </header>
 
       <main className="space-y-5 px-4">
@@ -82,7 +84,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
               <LocateButton />
             )}
           </div>
-          <SellerList sellers={p.sellers} maybeShops={p.maybeShops} center={center} radiusKm={center && sp.r && +sp.r > 0 ? +sp.r : null} />
+          <SellerList productTitle={p.title} sellers={p.sellers} maybeShops={p.maybeShops} center={center} radiusKm={center && sp.r && +sp.r > 0 ? +sp.r : null} />
         </section>
 
         {p.category && (
