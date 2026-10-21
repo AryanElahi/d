@@ -1,0 +1,10 @@
+CREATE INDEX products_title_trgm ON products USING gin (title_norm gin_trgm_ops);
+CREATE INDEX products_category ON products (category);
+CREATE INDEX products_brand ON products (brand);
+CREATE INDEX offers_seller_trgm ON offers USING gin (seller_norm gin_trgm_ops);
+CREATE INDEX offers_product ON offers (product_id, price_toman);
+CREATE INDEX offers_shop ON offers (shop_id);
+CREATE INDEX shops_latlon ON shops (lat, lon);
+CREATE INDEX shops_categories_trgm ON shops USING gin (categories_norm gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS user_reports_offer ON user_reports (offer_id, created_at DESC);
+ANALYZE;
