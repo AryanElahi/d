@@ -32,6 +32,8 @@ export type SearchResult = {
   center: { lat: number; lon: number; label: string } | null;
   results: ProductHit[];
   needsQuery?: boolean;
+  llm?: { used: boolean };
+  relaxed?: string;
 };
 
 // Dataset has junk prices (1 toman, 10^17); only these count as a real recorded price.
@@ -162,6 +164,6 @@ function reasons(h: ProductHit, cheapest: number): string[] {
   if (h.topMall && h.topMall.shops >= 2) out.push(`${toFaDigits(h.topMall.shops)} فروشنده در ${h.topMall.name}؛ یک مراجعه، چند گزینه`);
   const age = ageDays(h.newestChange);
   if (age != null && age <= 7) out.push("قیمت در هفته اخیر به‌روز شده");
-  if (h.shops >= 5) out.push(`${toFaDigits(h.shops)} فروشنده برای مقایسه`);
+  if (h.shops >= 5) out.push(`${toFaDigits(h.shops)} فروشنده؛ قیمت‌ها را کنار هم ببینید`);
   return out.slice(0, 2);
 }

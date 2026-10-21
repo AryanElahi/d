@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { LocateButton } from "@/components/LocateButton";
 import { SellerList } from "@/components/SellerList";
 import { TrackLink } from "@/components/TrackLink";
+import { CompareBar } from "@/components/CompareBar";
+import { CompareToggle } from "@/components/CompareToggle";
 import { MapLink } from "@/components/MapLink";
 import { daysAgo, distance, place, toman } from "@/lib/format";
 import { toFaDigits } from "@/lib/normalize";
@@ -35,7 +37,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
   const specs = p.specs.filter((s) => s.value);
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md pb-16">
+    <div className="mx-auto min-h-dvh max-w-md pb-24">
       <header className="sticky top-0 z-20 flex items-center gap-2 bg-[var(--background)]/95 px-4 py-3 backdrop-blur">
         <BackLink />
         <h1 className="min-w-0 flex-1 truncate text-sm font-semibold">{p.title}</h1>
@@ -55,6 +57,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
         <section>
           <p className="text-xs text-neutral-500">{[p.category, p.brand, p.model].filter(Boolean).join(" · ")}</p>
           <h2 className="mt-1 text-lg font-bold leading-8">{p.title}</h2>
+          <CompareToggle entry={{ id: p.id, title: p.title, category: p.category, image: p.images[0] ?? null }} className="mt-1" />
 
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
             <Stat label="کمترین" value={prices.length ? toman(prices[0]) : "—"} />
@@ -105,6 +108,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
           </details>
         )}
       </main>
+      <CompareBar query={center ? `&lat=${center.lat}&lon=${center.lon}&place=${encodeURIComponent(center.label)}` : ""} />
     </div>
   );
 }

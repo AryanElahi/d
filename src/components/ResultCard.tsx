@@ -3,6 +3,7 @@ import Link from "next/link";
 import { daysAgo, distance, toman } from "@/lib/format";
 import { toFaDigits } from "@/lib/normalize";
 import type { ProductHit } from "@/lib/search";
+import { CompareToggle } from "./CompareToggle";
 
 function priceRange(h: ProductHit) {
   if (h.minPrice == null) return "قیمت ثبت نشده";
@@ -73,7 +74,8 @@ export function ResultCard({ hit, href }: { hit: ProductHit; href: string }) {
         </ul>
       )}
 
-      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+        <CompareToggle entry={{ id: hit.id, title: hit.title, category: hit.category, image: hit.image }} className="ml-auto order-last" />
         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 ring-1 ring-amber-200">موجودی تأیید نشده</span>
         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-neutral-600">{priceAge(hit)}</span>
         {hit.warrantyShops > 0 && (

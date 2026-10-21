@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, LocateFixed, Search, SlidersHorizontal, X } from "lucide-react";
+import { Info, LocateFixed, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { distance, toman } from "@/lib/format";
 import { toFaDigits } from "@/lib/normalize";
@@ -9,6 +9,7 @@ import type { SearchInput, SearchResult } from "@/lib/search";
 import { FilterSheet } from "./FilterSheet";
 import { ResultCard, ResultCardSkeleton } from "./ResultCard";
 import { TrackLink } from "./TrackLink";
+import { CompareBar } from "./CompareBar";
 
 const EXAMPLES = [
   "دوربین مدار بسته داهوا نزدیک جمهوری",
@@ -90,7 +91,7 @@ export function SearchApp({ areas }: { areas: string[] }) {
   const chips = filters ? activeChips(filters) : [];
 
   return (
-    <div className="mx-auto min-h-dvh max-w-md pb-10">
+    <div className="mx-auto min-h-dvh max-w-md pb-24">
       <header className="sticky top-0 z-20 bg-[var(--background)]/95 px-4 pb-3 pt-4 backdrop-blur">
         <div className="mb-3 flex items-center justify-between">
           <div>
@@ -178,6 +179,17 @@ export function SearchApp({ areas }: { areas: string[] }) {
               <EmptyState filters={data.filters} onChange={update} />
             ) : (
               <>
+                {data.relaxed && (
+                  <p className="rounded-xl bg-neutral-100 p-2.5 text-xs leading-5 text-neutral-700">
+                    برای کل جمله نتیجه‌ای نبود؛ نتایج «{data.relaxed}» را نشان می‌دهیم.
+                  </p>
+                )}
+                {data.llm?.used && (
+                  <p className="flex items-start gap-1.5 rounded-xl bg-indigo-50 p-2.5 text-xs leading-5 text-indigo-900">
+                    <Sparkles className="mt-0.5 size-3.5 shrink-0" />
+                    جمله شما با کمک هوش مصنوعی به فیلترهای بالا تبدیل شد. اگر درست نیست، هر فیلتر را بردارید یا تغییر دهید.
+                  </p>
+                )}
                 <p className="text-xs text-neutral-500">
                   {toFaDigits(data.results.length)} کالا
                   {data.center && ` · تا ${distance(data.filters.radiusKm)} از ${data.center.label}`}
@@ -197,6 +209,8 @@ export function SearchApp({ areas }: { areas: string[] }) {
           </>
         )}
       </main>
+
+      <CompareBar query={data?.center ? `&lat=${data.center.lat}&lon=${data.center.lon}&place=${encodeURIComponent(data.center.label)}` : ""} />
 
       {filters && (
         <FilterSheet open={sheet} filters={filters} areas={areas} onChange={update} onClose={() => setSheet(false)} />
