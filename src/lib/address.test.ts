@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAddress } from "./address";
+import { mallKey, parseAddress } from "./address";
 
 describe("parseAddress", () => {
   it("mall, floor, unit", () =>
@@ -21,4 +21,20 @@ describe("parseAddress floors", () => {
     const p = parseAddress(addr);
     expect([p.floor, p.unit]).toEqual([floor, unit]);
   });
+});
+
+describe("parseAddress unit", () => {
+  it("prefers واحد over building پلاک", () =>
+    expect(parseAddress("کوچه یغما، پلاک 2، طبقه 4، واحد 13").unit).toBe("13"));
+  it("no trailing comma", () => expect(parseAddress("پاساژ نادری، پلاک ۲، طبقه ۱").unit).toBe("2"));
+});
+
+describe("mallKey", () => {
+  it("merges spelling variants", () => {
+    const k = mallKey("پاساژ علاالدین 2");
+    expect(mallKey("پاساژ علاالدین2")).toBe(k);
+    expect(mallKey("مجتمع علاءالدین 2")).toBe(k);
+    expect(mallKey("مجتمع تجاری یگانه")).toBe(mallKey("پاساژ یگانه"));
+  });
+  it("null", () => expect(mallKey(null)).toBeNull());
 });

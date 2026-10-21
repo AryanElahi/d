@@ -25,3 +25,24 @@ export function distance(km: number | null | undefined): string {
   if (km < 1) return `${toFaDigits(Math.round(km * 1000 / 10) * 10)} متر`;
   return `${toFaDigits(+km.toFixed(1))} کیلومتر`;
 }
+
+export type Tone = "fresh" | "aging" | "stale" | "unknown";
+
+// Price freshness: a recorded price is a hint, and older hints deserve louder warnings.
+export function priceTone(iso: string | null | undefined, now = Date.now()): Tone {
+  const d = ageDays(iso, now);
+  if (d == null) return "unknown";
+  if (d <= 7) return "fresh";
+  if (d <= 30) return "aging";
+  return "stale";
+}
+
+export function place(mall: string | null, floor: string | null, unit: string | null): string {
+  return [mall, floor && `طبقه ${toFaDigits(floor)}`, unit && `واحد ${toFaDigits(unit)}`].filter(Boolean).join("، ");
+}
+
+// Android: geo: lets the user pick Neshan/Balad and drops a pin. Elsewhere: a Google Maps pin.
+// (Neshan's web URLs can't drop a pin and clamp zoom; checked 2026-10-22.)
+export function mapsUrl(lat: number, lon: number, android: boolean): string {
+  return android ? `geo:${lat},${lon}?q=${lat},${lon}` : `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+}

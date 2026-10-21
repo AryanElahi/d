@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parse } from "csv-parse";
 import { Client } from "pg";
 import { normalizeFa } from "../src/lib/normalize";
-import { parseAddress } from "../src/lib/address";
+import { mallKey, parseAddress } from "../src/lib/address";
 
 const dir = process.argv[2] ?? "data";
 const BATCH = 2000;
@@ -30,6 +30,11 @@ async function load(file: string, table: string, map: (r: Record<string, string>
   }
   await flush();
   console.log();
+}
+
+function addr(a: string) {
+  const parts = parseAddress(a);
+  return { ...parts, mall_key: mallKey(parts.mall) };
 }
 
 type Day = { status: string; shifts: { start_time: string; end_time: string }[] };
@@ -72,7 +77,7 @@ async function main() {
       website_url: nil(r.website_url),
       instagram: nil(r.instagram),
       fast_delivery: nil(r.supports_fast_delivery) === null ? null : r.supports_fast_delivery === "true",
-      ...parseAddress(r.address),
+      ...addr(r.address),
       torobpay: pay.length ? providers.includes("ترب‌پی") : null,
       installment_providers: providers.filter((p) => p !== "ترب‌پی"),
       has_hours: hasRealHours(hours),
@@ -104,6 +109,12 @@ async function main() {
     last_price_changed_at: nil(r.last_price_changed_at),
     warranty: json(r.warranty),
   }));
+
+  // One display name per building: the most common spelling of its key.
+  await db.query(`
+    UPDATE shops s SET mall = c.name
+    FROM (SELECT mall_key, mode() WITHIN GROUP (ORDER BY mall) name FROM shops WHERE mall_key IS NOT NULL GROUP BY 1) c
+    WHERE s.mall_key = c.mall_key`);
 
   // Area centroids from the shops' own labels: no external geocoder.
   const { rows } = await db.query(

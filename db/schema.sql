@@ -17,6 +17,7 @@ CREATE TABLE shops (
   instagram text,
   fast_delivery boolean,
   mall text,
+  mall_key text,
   floor text,
   unit text,
   torobpay boolean,
