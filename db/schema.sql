@@ -24,7 +24,11 @@ CREATE TABLE shops (
   installment_providers text[],
   has_hours boolean NOT NULL,
   is_real_name boolean NOT NULL,
-  categories_norm text
+  categories_norm text,
+  -- Trust signals from the shop's own offers (filled after offers load).
+  offers_count int,
+  warranty_share real,
+  price_median_at timestamptz
 );
 
 CREATE TABLE products (

@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, BellRing, Building2, Clock, Globe, List, Map as MapIcon, MapPin, MessageCircleQuestion, Navigation, Phone, ShieldCheck } from "lucide-react";
+import { AtSign, BadgeCheck, BellRing, Building2, Clock, Globe, List, Map as MapIcon, MapPin, MessageCircleQuestion, Navigation, Phone, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { daysAgo, distance, place, priceTone, toman, type Tone } from "@/lib/format";
@@ -9,6 +9,7 @@ import { toFaDigits } from "@/lib/normalize";
 import type { Tracked } from "@/lib/followup";
 import { STATUS_LABEL, telHref, type Status } from "@/lib/message";
 import type { Center, MaybeShop, Seller, Warranty } from "@/lib/product";
+import type { Trust } from "@/lib/trust";
 import { FollowUpSheet } from "./FollowUpSheet";
 import { useTracked } from "./useTracked";
 import { MapLink } from "./MapLink";
@@ -249,6 +250,8 @@ function SellerCard({ s, cheapest, outside, tracked, productTitle }: CardProps) 
         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-800 ring-1 ring-amber-200">موجودی تأیید نشده</span>
       </div>
 
+      <TrustBlock trust={s.trust} />
+
       {s.report && (
         <p className="mt-2 rounded-lg bg-sky-50 px-2 py-1 text-xs text-sky-900">
           گزارش کاربر · {daysAgo(s.report.at)}: {STATUS_LABEL[s.report.status as Status] ?? s.report.status}
@@ -340,3 +343,36 @@ function SellerCard({ s, cheapest, outside, tracked, productTitle }: CardProps) 
   );
 }
 
+
+const REPORT_TONE = {
+  good: "bg-emerald-50 text-emerald-900 ring-emerald-200",
+  mixed: "bg-amber-50 text-amber-900 ring-amber-200",
+  bad: "bg-rose-50 text-rose-900 ring-rose-200",
+};
+const SIGNAL_TONE: Record<string, string> = { fresh: "text-emerald-700", aging: "text-amber-700", stale: "text-rose-700" };
+
+// What we know about this shop: real user outcomes (never simulated) and its own Torob data.
+function TrustBlock({ trust }: { trust: Trust }) {
+  return (
+    <div className="mt-2 space-y-1 text-[11px]">
+      {trust.reports ? (
+        <p className={`flex items-start gap-1.5 rounded-lg px-2 py-1 ring-1 ${REPORT_TONE[trust.reports.tone]}`}>
+          <BadgeCheck className="mt-0.5 size-3.5 shrink-0" />
+          {trust.reports.text}
+        </p>
+      ) : (
+        <p className="text-neutral-400">هنوز گزارشی از خرید کاربران از این فروشگاه نیست.</p>
+      )}
+      {trust.signals.length > 0 && (
+        <p className="text-neutral-500">
+          {trust.signals.map((x, i) => (
+            <span key={x.text} className={SIGNAL_TONE[x.tone] ?? ""}>
+              {i > 0 && <span className="text-neutral-300"> · </span>}
+              {x.text}
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
+  );
+}

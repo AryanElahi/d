@@ -159,3 +159,14 @@ export async function askMarket(product: string, fetchImpl: typeof fetch = fetch
     .filter((p): p is MarketPlace => typeof p?.name === "string" && typeof p?.why === "string" && p.name.length <= 60 && p.why.length <= 160)
     .slice(0, 3);
 }
+
+const CHECKLIST_PROMPT = `You help shoppers buying in person in Iranian shops. Given a product category, reply with ONLY JSON:
+{"tips":["...","..."]} with 2-4 short, practical Persian checks to do in the shop before paying (what to test, ask or verify).
+No brand recommendations, no prices, nothing you are unsure of.`;
+
+// Category tips for categories without a curated guide; shown labelled as AI-generated.
+export async function askChecklist(category: string, fetchImpl: typeof fetch = fetch): Promise<string[] | null> {
+  const out = await chatJson<{ tips?: unknown }>("checklist", CHECKLIST_PROMPT, category, fetchImpl);
+  const tips = Array.isArray(out?.tips) ? out.tips.filter((t): t is string => typeof t === "string" && t.length > 3 && t.length <= 160) : [];
+  return tips.length ? tips.slice(0, 4) : null;
+}

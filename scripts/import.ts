@@ -110,6 +110,16 @@ async function main() {
     warranty: json(r.warranty),
   }));
 
+  // Per-shop signals from its offers: catalogue size, warranty coverage, how fresh its prices usually are.
+  await db.query(`
+    UPDATE shops s SET offers_count = x.n, warranty_share = x.w, price_median_at = x.m
+    FROM (
+      SELECT shop_id, count(*)::int n,
+        avg((warranty IS NOT NULL AND warranty->>'provider' <> 'بدون گارانتی')::int)::real w,
+        percentile_disc(0.5) WITHIN GROUP (ORDER BY last_price_changed_at) m
+      FROM offers GROUP BY shop_id
+    ) x WHERE x.shop_id = s.shop_id`);
+
   // One display name per building: the most common spelling of its key.
   await db.query(`
     UPDATE shops s SET mall = c.name

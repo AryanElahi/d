@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import { hoursNow, type HoursNow, type Week } from "./hours";
+import { trustOf, type Trust } from "./trust";
 
 export type Center = { lat: number; lon: number; label: string };
 
@@ -28,6 +29,7 @@ export type Seller = {
   website: string | null;
   instagram: string | null;
   report: { status: string; price: number | null; at: string } | null;
+  trust: Trust;
 };
 
 export type MaybeShop = {
@@ -83,7 +85,8 @@ export async function getProduct(id: string, center: Center | null): Promise<Pro
        s.shop_id, s.name, s.address, s.mall, s.floor, s.unit, s.lat, s.lon, s.weekly_hours,
        s.torobpay, s.installment_providers, s.fast_delivery, s.contacts, s.website_url, s.instagram,
        ${dist} distance_km,
-       r.status report_status, r.reported_price, r.created_at report_at
+       r.status report_status, r.reported_price, r.created_at report_at,
+       s.offers_count, s.warranty_share, s.price_median_at, t.*
      FROM offers o
      JOIN shops s ON s.shop_id = o.shop_id
      LEFT JOIN LATERAL (
@@ -91,6 +94,20 @@ export async function getProduct(id: string, center: Center | null): Promise<Pro
        WHERE offer_id = o.offer_id AND NOT simulated AND status IN ('confirmed','unavailable','price_changed','bought') -- real outcomes only
        ORDER BY created_at DESC LIMIT 1
      ) r ON true
+     -- Shop-wide real outcomes, 90 days; one vote per device per offer (its latest) so nobody can stuff it.
+     LEFT JOIN LATERAL (
+       SELECT count(*) FILTER (WHERE status = 'confirmed')::int t_confirmed,
+         count(*) FILTER (WHERE status = 'unavailable')::int t_unavailable,
+         count(*) FILTER (WHERE status = 'price_changed')::int t_price_changed,
+         count(*) FILTER (WHERE status = 'bought')::int t_bought
+       FROM (
+         SELECT DISTINCT ON (ur.device_id, ur.offer_id) ur.status
+         FROM user_reports ur JOIN offers so ON so.offer_id = ur.offer_id
+         WHERE so.shop_id = s.shop_id AND NOT ur.simulated AND ur.created_at > now() - interval '90 days'
+           AND ur.status IN ('confirmed','unavailable','price_changed','bought')
+         ORDER BY ur.device_id, ur.offer_id, ur.created_at DESC
+       ) latest
+     ) t ON true
      WHERE o.product_id = $1`,
     params,
   );
@@ -156,6 +173,11 @@ export async function getProduct(id: string, center: Center | null): Promise<Pro
       phone: phoneOf(r.contacts),
       website: r.website_url,
       instagram: r.instagram,
+      trust: trustOf(
+        { confirmed: r.t_confirmed, unavailable: r.t_unavailable, priceChanged: r.t_price_changed, bought: r.t_bought },
+        { offersCount: r.offers_count, warrantyShare: r.warranty_share, priceMedianAt: r.price_median_at?.toISOString() ?? null },
+        now.getTime(),
+      ),
       report: r.report_status
         ? { status: r.report_status, price: r.reported_price == null ? null : +r.reported_price, at: r.report_at.toISOString() }
         : null,

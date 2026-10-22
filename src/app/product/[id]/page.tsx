@@ -1,4 +1,4 @@
-import { ArrowRight, Clock, HelpCircle, Info, MapPin, Navigation } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Clock, HelpCircle, Info, MapPin, Navigation } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LocateButton } from "@/components/LocateButton";
@@ -9,6 +9,8 @@ import { CompareToggle } from "@/components/CompareToggle";
 import { MapLink } from "@/components/MapLink";
 import { daysAgo, distance, place, toman } from "@/lib/format";
 import { toFaDigits } from "@/lib/normalize";
+import type { CheckItem } from "@/lib/checklist";
+import { getChecklist } from "@/lib/checklistData";
 import { getProduct, type Center, type MaybeShop } from "@/lib/product";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +30,7 @@ export default async function ProductPage({ params, searchParams }: Props) {
 
   const p = await getProduct(id, center);
   if (!p) notFound();
+  const checklist = await getChecklist(p);
 
   const prices = p.sellers.map((s) => s.price).filter((x): x is number => x != null).sort((a, b) => a - b);
   const median = prices.length ? prices[Math.floor(prices.length / 2)] : null;
@@ -89,6 +92,8 @@ export default async function ProductPage({ params, searchParams }: Props) {
           </div>
           <SellerList productTitle={p.title} sellers={p.sellers} maybeShops={p.maybeShops} center={center} radiusKm={center && sp.r && +sp.r > 0 ? +sp.r : null} />
         </section>
+
+        <Checklist items={checklist} />
 
         {p.category && (
           <MaybeShops shops={p.maybeShops} total={p.maybeShopsTotal} category={p.category} center={center} />
@@ -169,5 +174,36 @@ function MaybeShops({ shops, total, category, center }: { shops: MaybeShop[]; to
         </>
       )}
     </section>
+  );
+}
+
+const SOURCE: Record<CheckItem["source"], [string, string]> = {
+  data: ["از داده ترب", "bg-teal-50 text-teal-800"],
+  guide: ["راهنمای خرید", "bg-neutral-100 text-neutral-600"],
+  ai: ["تولید هوش مصنوعی", "bg-indigo-50 text-indigo-800"],
+};
+
+function Checklist({ items }: { items: CheckItem[] }) {
+  return (
+    <details open className="rounded-2xl bg-white p-3 ring-1 ring-black/5">
+      <summary className="flex cursor-pointer items-center gap-1.5 text-base font-bold">
+        <ClipboardCheck className="size-4 text-teal-700" />
+        چک‌لیست خرید حضوری
+      </summary>
+      <p className="mt-1 text-[11px] leading-5 text-neutral-500">
+        پیش از پرداخت در مغازه این‌ها را چک کنید. نظر کاربران در دیتاست نیست؛ هر مورد منبعش را نشان می‌دهد.
+      </p>
+      <ul className="mt-2 space-y-2">
+        {items.map((it) => (
+          <li key={it.text} className="flex items-start gap-2 text-xs leading-6">
+            <input type="checkbox" className="mt-1.5 size-3.5 shrink-0 accent-teal-600" aria-label={it.text} />
+            <span>
+              {it.text}
+              <span className={`mr-1.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] ${SOURCE[it.source][1]}`}>{SOURCE[it.source][0]}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
