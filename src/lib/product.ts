@@ -88,7 +88,7 @@ export async function getProduct(id: string, center: Center | null): Promise<Pro
      JOIN shops s ON s.shop_id = o.shop_id
      LEFT JOIN LATERAL (
        SELECT status, reported_price, created_at FROM user_reports
-       WHERE offer_id = o.offer_id AND status IN ('confirmed','unavailable','price_changed','bought') -- outcomes only, not personal bookkeeping
+       WHERE offer_id = o.offer_id AND NOT simulated AND status IN ('confirmed','unavailable','price_changed','bought') -- real outcomes only
        ORDER BY created_at DESC LIMIT 1
      ) r ON true
      WHERE o.product_id = $1`,

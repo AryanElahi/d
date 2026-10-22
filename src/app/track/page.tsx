@@ -84,6 +84,7 @@ function TrackedCard({ t }: { t: Tracked }) {
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
         <span className={`rounded-full px-2 py-0.5 font-semibold ${STATUS_TONE[t.status] ?? ""}`}>{STATUS_LABEL[t.status]}</span>
+        {t.simulated && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-800">پاسخ شبیه‌سازی‌شده</span>}
         <span className="text-neutral-500">{daysAgo(t.updatedAt)}</span>
       </div>
 
@@ -94,7 +95,7 @@ function TrackedCard({ t }: { t: Tracked }) {
           <p className="text-[10px] text-neutral-400">{daysAgo(t.priceChangedAt)}</p>
         </div>
         <div className="rounded-lg bg-neutral-50 p-2">
-          <p className="text-neutral-500">گزارش شما</p>
+          <p className="text-neutral-500">{t.simulated ? "گفته فروشنده (شبیه‌سازی)" : "گزارش شما"}</p>
           <p className="font-bold">{t.reportedPrice != null ? toman(t.reportedPrice) : "—"}</p>
           <p className="flex items-center gap-1 text-[10px] text-neutral-500"><Clock className="size-3" />{t.hours.label}</p>
         </div>

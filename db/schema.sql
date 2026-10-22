@@ -68,6 +68,8 @@ CREATE TABLE IF NOT EXISTS user_reports (
   reported_price bigint,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+-- Simulated seller replies are the user's own demo data: never shown to other users.
+ALTER TABLE user_reports ADD COLUMN IF NOT EXISTS simulated boolean NOT NULL DEFAULT false;
 ALTER TABLE user_reports DROP CONSTRAINT IF EXISTS user_reports_status_check;
 ALTER TABLE user_reports ADD CONSTRAINT user_reports_status_check
   CHECK (status IN ('saved','contacted','confirmed','unavailable','price_changed','bought','dismissed'));

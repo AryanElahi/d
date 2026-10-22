@@ -261,7 +261,9 @@ function SellerCard({ s, cheapest, outside, tracked, productTitle }: CardProps) 
           onClick={() => setSheet(true)}
           className={`mt-2 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs ring-1 ${TRACK_TONE[tracked.status] ?? "bg-sky-50 text-sky-900 ring-sky-200"}`}
         >
-          <span className="flex items-center gap-1.5"><BellRing className="size-3.5" />پیگیری شما: {STATUS_LABEL[tracked.status]}{tracked.reportedPrice != null && ` (${toman(tracked.reportedPrice)})`}</span>
+          <span className="flex items-center gap-1.5"><BellRing className="size-3.5" />پیگیری شما: {STATUS_LABEL[tracked.status]}{tracked.reportedPrice != null && ` (${toman(tracked.reportedPrice)})`}
+            {tracked.simulated && <span className="rounded bg-white/70 px-1 text-[10px]">شبیه‌سازی</span>}
+          </span>
           <span className="font-semibold">{tracked.status === "unavailable" || tracked.status === "price_changed" ? "جایگزین‌ها" : "ثبت نتیجه"}</span>
         </button>
       )}

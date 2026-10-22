@@ -7,14 +7,15 @@ import { distSql, phoneOf, VALID_PRICE } from "./product";
 
 export const STATUSES: Status[] = ["saved", "contacted", "confirmed", "unavailable", "price_changed", "bought", "dismissed"];
 
-export async function addReport(r: { deviceId: string; offerId: string; status: Status; reportedPrice: number | null }) {
+export async function addReport(r: { deviceId: string; offerId: string; status: Status; reportedPrice: number | null; simulated?: boolean }) {
   const exists = await pool.query("SELECT 1 FROM offers WHERE offer_id = $1", [r.offerId]);
   if (!exists.rowCount) return false;
-  await pool.query("INSERT INTO user_reports (device_id, offer_id, status, reported_price) VALUES ($1, $2, $3, $4)", [
+  await pool.query("INSERT INTO user_reports (device_id, offer_id, status, reported_price, simulated) VALUES ($1, $2, $3, $4, $5)", [
     r.deviceId,
     r.offerId,
     r.status,
     r.reportedPrice,
+    r.simulated ?? false,
   ]);
   return true;
 }
@@ -23,6 +24,7 @@ export type Tracked = {
   offerId: string;
   status: Status;
   reportedPrice: number | null;
+  simulated: boolean;
   updatedAt: string;
   startedAt: string;
   price: number | null;
@@ -44,12 +46,12 @@ export type Tracked = {
 export async function trackedFor(deviceId: string): Promise<Tracked[]> {
   const { rows } = await pool.query(
     `WITH latest AS (
-       SELECT DISTINCT ON (offer_id) offer_id, status, reported_price, created_at
+       SELECT DISTINCT ON (offer_id) offer_id, status, reported_price, simulated, created_at
        FROM user_reports WHERE device_id = $1 ORDER BY offer_id, created_at DESC
      ), first AS (
        SELECT offer_id, min(created_at) started_at FROM user_reports WHERE device_id = $1 GROUP BY 1
      )
-     SELECT l.offer_id, l.status, l.reported_price, l.created_at, f.started_at,
+     SELECT l.offer_id, l.status, l.reported_price, l.simulated, l.created_at, f.started_at,
        CASE WHEN ${VALID_PRICE} THEN o.price_toman END price, o.last_price_changed_at,
        p.product_id, p.title, p.image_urls->>0 image,
        s.name, s.mall, s.floor, s.unit, s.address, s.lat, s.lon, s.weekly_hours, s.contacts
@@ -67,6 +69,7 @@ export async function trackedFor(deviceId: string): Promise<Tracked[]> {
     offerId: r.offer_id,
     status: r.status,
     reportedPrice: r.reported_price == null ? null : +r.reported_price,
+    simulated: r.simulated,
     updatedAt: r.created_at.toISOString(),
     startedAt: r.started_at.toISOString(),
     price: r.price == null ? null : +r.price,
