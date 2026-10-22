@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  output: "standalone",
-};
+// Liara's Next platform runs `npm run build` + `npm start` (next start), so no standalone output.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
