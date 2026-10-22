@@ -71,8 +71,12 @@ const RULES: Rule[] = [
   [new RegExp(`(?:بالای|بیشتر\\s*از|حداقل|گرانتر\\s*از)\\s*${NUM}\\s*${UNIT}`), (m, f) => {
     f.budgetMin = amount(m[1], m[2]);
   }],
-  [new RegExp(`${NUM}\\s*(میلیارد|میلیون|هزار)\\s*(?:تومان|تومن)?`), (m, f) => {
+  // Bare amounts: «۲۰ میلیون» is a budget, but «۵۰ هزار» alone is often a spec (پاوربانک ۵۰ هزار mAh).
+  [new RegExp(`${NUM}\\s*(میلیارد|میلیون)\\s*(?:تومان|تومن)?`), (m, f) => {
     f.budgetMax = amount(m[1], m[2]);
+  }],
+  [new RegExp(`${NUM}\\s*هزار\\s*(?:تومان|تومن)`), (m, f) => {
+    f.budgetMax = amount(m[1], "هزار");
   }],
   [b("نزدیک\\s*من|نزدیکم|اطراف\\s*من|دور\\s*و\\s*برم|همین\\s*اطراف"), (_, f) => { f.nearMe = true; }],
   [b("ترب\\s*پی|ترب\\s*پی\\s*دار"), (_, f) => { f.torobpay = true; }],
@@ -115,7 +119,10 @@ export function parseQuery(q: string, vocab: Vocab): Filters {
   }
   let text = normalizeFa(s);
   [f.area, text] = takeLongest(text, vocab.areas);
-  [f.category, text] = takeLongest(text, vocab.categories);
+  // One-word category names («کریستال», «یخچال») are only a filter when they are the whole query;
+  // otherwise they'd hijack queries like «لوستر کریستال». Kept as search words instead.
+  const [cat, rest] = takeLongest(text, vocab.categories);
+  if (cat && (normalizeFa(cat).includes(" ") || !rest)) [f.category, text] = [cat, rest];
   [f.brand, text] = takeLongest(text, vocab.brands);
   f.text = normalizeFa(` ${text} `.replace(FILLER, " ").replace(FILLER, " "));
   return f;

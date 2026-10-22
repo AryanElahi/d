@@ -1,10 +1,11 @@
 import { pool } from "./db";
 import { ageDays, toman } from "./format";
 import { normalizeFa, toFaDigits } from "./normalize";
+import type { Market } from "./hubs";
 import type { Filters } from "./parser";
 import { loadVocab } from "./vocab";
 
-export type SearchInput = Filters & { lat?: number; lon?: number; radiusKm?: number };
+export type SearchInput = Filters & { lat?: number; lon?: number; radiusKm?: number; place?: string };
 
 export type ProductHit = {
   id: string;
@@ -34,6 +35,7 @@ export type SearchResult = {
   needsQuery?: boolean;
   llm?: { used: boolean };
   relaxed?: string;
+  market?: Market | null;
 };
 
 // Dataset has junk prices (1 toman, 10^17); only these count as a real recorded price.
@@ -49,7 +51,7 @@ export async function search(input: SearchInput): Promise<SearchResult> {
   let center: SearchResult["center"] = null;
   const area = f.area ? areas.get(f.area) : undefined;
   if (f.lat != null && f.lon != null) {
-    center = { lat: f.lat, lon: f.lon, label: "موقعیت شما" };
+    center = { lat: f.lat, lon: f.lon, label: f.place || "موقعیت شما" };
     f.radiusKm ??= DEFAULT_RADIUS.nearMe;
   } else if (area) {
     center = { lat: area.lat, lon: area.lon, label: area.name };

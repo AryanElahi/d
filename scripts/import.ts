@@ -127,6 +127,21 @@ async function main() {
     await db.query(`INSERT INTO areas SELECT $1, $2, lat, lon, shop_count FROM areas WHERE name = $3`, [alias, normalizeFa(alias), label]);
   console.log(`areas: ${rows.length} + ${Object.keys(AREA_ALIASES).length} aliases`);
 
+  // Where each category is concentrated («بورس»): malls first, else the area label. Top 5, ≥3 shops.
+  await db.query(`
+    CREATE TABLE category_hubs AS
+    SELECT category, name, kind, shops, lat, lon, rank FROM (
+      SELECT c.category, coalesce(s.mall, s.location_label) name,
+        CASE WHEN s.mall IS NOT NULL THEN 'mall' ELSE 'area' END kind,
+        count(*)::int shops, avg(s.lat) lat, avg(s.lon) lon,
+        row_number() OVER (PARTITION BY c.category ORDER BY count(*) DESC)::int rank
+      FROM shops s, jsonb_array_elements_text(s.category_names) c(category)
+      WHERE coalesce(s.mall, s.location_label) IS NOT NULL
+      GROUP BY 1, 2, 3
+    ) h WHERE rank <= 5 AND shops >= 3`);
+  const hubs = await db.query("SELECT count(*)::int n, count(DISTINCT category)::int c FROM category_hubs");
+  console.log(`category_hubs: ${hubs.rows[0].n} hubs for ${hubs.rows[0].c} categories`);
+
   await db.query(readFileSync("db/indexes.sql", "utf8"));
   console.log("indexes done");
   await db.end();

@@ -13,6 +13,7 @@ export function toParams(f: SearchInput): URLSearchParams {
   set("lat", f.lat);
   set("lon", f.lon);
   set("r", f.radiusKm);
+  set("place", f.lat != null ? f.place : undefined);
   set("torobpay", f.torobpay ? "1" : "0");
   set("inst", f.installments ? "1" : "0");
   set("warranty", f.warranty ? "1" : "0");

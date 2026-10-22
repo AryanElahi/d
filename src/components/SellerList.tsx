@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Building2, Clock, List, Map as MapIcon, MapPin, MessageCircleQuestion, Navigation, Phone, ShieldCheck } from "lucide-react";
+import { AtSign, BellRing, Building2, Clock, Globe, List, Map as MapIcon, MapPin, MessageCircleQuestion, Navigation, Phone, ShieldCheck } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import { daysAgo, distance, place, priceTone, toman, type Tone } from "@/lib/format";
@@ -37,6 +37,19 @@ const HOURS_TONE: Record<HoursState, string> = {
 };
 
 const OPEN_RANK: Record<HoursState, number> = { open: 0, closing_soon: 1, unknown: 2, closed: 3 };
+
+// The few shops with a real website/Instagram (dataset keeps their names real for this).
+function shopLinks(s: Seller): { href: string; label: string; icon: "web" | "ig" }[] {
+  const out: { href: string; label: string; icon: "web" | "ig" }[] = [];
+  const safe = (u: unknown): u is string => typeof u === "string" && /^https:\/\/[^\s"<>]+$/.test(u);
+  if (safe(s.website)) out.push({ href: s.website, label: new URL(s.website).hostname.replace(/^www\./, ""), icon: "web" });
+  try {
+    const ig = s.instagram ? JSON.parse(s.instagram) : null;
+    if (safe(ig?.profile_url) && new URL(ig.profile_url).hostname.endsWith("instagram.com"))
+      out.push({ href: ig.profile_url, label: `@${ig.handle ?? "instagram"}`, icon: "ig" });
+  } catch {}
+  return out;
+}
 
 function warrantyText(w: Warranty): string | null {
   if (!w?.provider) return null;
@@ -277,6 +290,18 @@ function SellerCard({ s, cheapest, outside, tracked, productTitle }: CardProps) 
         {s.torobpay == null && <span className="rounded-full bg-neutral-50 px-2 py-0.5 text-neutral-400">شرایط پرداخت نامشخص</span>}
         {s.fastDelivery && <span className="rounded-full bg-neutral-100 px-2 py-0.5">ارسال فوری</span>}
       </div>
+
+      {shopLinks(s).length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+          {shopLinks(s).map((l) => (
+            <a key={l.href} href={l.href} target="_blank" rel="noreferrer nofollow" className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-800 ring-1 ring-indigo-200" dir="ltr">
+              {l.icon === "web" ? <Globe className="size-3" /> : <AtSign className="size-3" />}
+              {l.label}
+            </a>
+          ))}
+          <span className="self-center text-[10px] text-neutral-400">صفحه رسمی فروشگاه؛ برای دیدن کاتالوگ و نظرات</span>
+        </div>
+      )}
 
       {s.sellerTitle && <p className="mt-2 line-clamp-1 text-[11px] text-neutral-400">عنوان فروشنده: {s.sellerTitle}</p>}
 

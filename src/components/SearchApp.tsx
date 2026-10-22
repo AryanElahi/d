@@ -10,6 +10,8 @@ import { FilterSheet } from "./FilterSheet";
 import { ResultCard, ResultCardSkeleton } from "./ResultCard";
 import { TrackLink } from "./TrackLink";
 import { CompareBar } from "./CompareBar";
+import { MarketCard } from "./MarketCard";
+import type { Hub } from "@/lib/hubs";
 
 const EXAMPLES = [
   "دوربین مدار بسته داهوا نزدیک جمهوری",
@@ -86,6 +88,14 @@ export function SearchApp({ areas }: { areas: string[] }) {
   const update = (f: SearchInput) => {
     setFilters(f);
     run(toParams(f));
+  };
+  // Search around a «بورس» hub. With no results, the exact words failed: browse the hub's category instead.
+  const searchHere = (h: Hub, byCategory: boolean) => {
+    if (!filters) return;
+    const cat = data?.market?.source === "data" ? data.market.category : undefined;
+    const what = byCategory && cat ? { text: "", category: cat } : {}; // brand kept: the place was what failed
+    update({ ...filters, ...what, area: undefined, lat: h.lat, lon: h.lon, place: h.name, radiusKm: 0.5, sort: "relevance" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const chips = filters ? activeChips(filters) : [];
@@ -176,7 +186,10 @@ export function SearchApp({ areas }: { areas: string[] }) {
             {data.needsQuery ? (
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-neutral-600">بگو دنبال چه کالایی هستی؛ مثلاً «دوربین مدار بسته» یا «هندزفری».</p>
             ) : data.results.length === 0 ? (
-              <EmptyState filters={data.filters} onChange={update} />
+              <>
+                {data.market && <MarketCard market={data.market} center={data.center} emphasis onSearchHere={searchHere} />}
+                <EmptyState filters={data.filters} onChange={update} />
+              </>
             ) : (
               <>
                 {data.relaxed && (
@@ -204,6 +217,7 @@ export function SearchApp({ areas }: { areas: string[] }) {
                   }
                   return <ResultCard key={h.id} hit={h} href={`/product/${h.id}?${p}`} />;
                 })}
+                {data.market && <MarketCard market={data.market} center={data.center} emphasis={false} onSearchHere={searchHere} />}
               </>
             )}
           </>
@@ -233,7 +247,7 @@ function activeChips(f: SearchInput): { label: string; clear: Partial<SearchInpu
   else if (f.budgetMin != null) out.push({ label: `از ${toman(f.budgetMin)}`, clear: { budgetMin: undefined } });
   const noPlaceSort = f.sort === "distance" ? { sort: "relevance" as const } : {};
   if (f.lat != null)
-    out.push({ label: `اطراف من · ${distance(f.radiusKm)}`, clear: { lat: undefined, lon: undefined, radiusKm: undefined, ...noPlaceSort } });
+    out.push({ label: `${f.place ?? "اطراف من"} · ${distance(f.radiusKm)}`, clear: { lat: undefined, lon: undefined, place: undefined, radiusKm: undefined, ...noPlaceSort } });
   else if (f.area) out.push({ label: `${f.area} · ${distance(f.radiusKm)}`, clear: { area: undefined, radiusKm: undefined, ...noPlaceSort } });
   if (f.openNow) out.push({ label: "الان باز", clear: { openNow: false } });
   if (f.warranty) out.push({ label: "گارانتی‌دار", clear: { warranty: false } });

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { market, pickCategory } from "@/lib/hubs";
 import { askLlm, llmEnabled, mergeLlm, shouldAskLlm } from "@/lib/llm";
 import { normalizeFa } from "@/lib/normalize";
 import { parseQuery, type Sort } from "@/lib/parser";
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
     lat: num("lat"),
     lon: num("lon"),
     radiusKm: num("r"),
+    place: str("place"),
     torobpay: flag("torobpay"),
     installments: flag("inst"),
     warranty: flag("warranty"),
@@ -72,7 +74,16 @@ export async function GET(req: NextRequest) {
         relaxed = text;
       }
     }
-    return NextResponse.json({ ...result, llm: { used: usedLlm }, relaxed });
+    // «بورس» guidance for the category; LLM general knowledge only when nothing was found.
+    const mk = result.needsQuery
+      ? null
+      : await market(
+          pickCategory(result.filters.category, result.results.map((r) => r.category), result.filters.text, vocab.categories),
+          result.filters.text,
+          result.center,
+          result.results.length === 0,
+        );
+    return NextResponse.json({ ...result, llm: { used: usedLlm }, relaxed, market: mk });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "search_failed" }, { status: 500 });

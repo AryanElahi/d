@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
-DROP TABLE IF EXISTS offers, products, shops, areas CASCADE;
+DROP TABLE IF EXISTS offers, products, shops, areas, category_hubs CASCADE;
 
 CREATE TABLE shops (
   shop_id text PRIMARY KEY,

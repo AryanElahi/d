@@ -4,7 +4,7 @@ import { parseQuery, type Vocab } from "./parser";
 const vocab: Vocab = {
   areas: ["فردوسی", "شیخ هادی", "جمهوری", "لاله زار", "تجریش"],
   brands: ["سامسونگ", "داهوا", "هایک ویژن", "اپل"],
-  categories: ["گوشی موبایل", "دوربین مدار بسته", "کیف و کاور گوشی", "سیم و کابل برق ساختمان"],
+  categories: ["گوشی موبایل", "دوربین مدار بسته", "کیف و کاور گوشی", "سیم و کابل برق ساختمان", "کریستال"],
 };
 const p = (q: string) => parseQuery(q, vocab);
 
@@ -32,7 +32,15 @@ describe("parseQuery", () => {
     const f = p("لپ تاپ قسطی با گارانتی ترب پی الان باز");
     expect(f).toMatchObject({ installments: true, warranty: true, torobpay: true, openNow: true, text: "لپ تاپ" });
   });
+  it("«۵۰ هزار» without تومان is a spec, not a budget", () => {
+    const f = p("پاوربانک ۵۰ هزار");
+    expect([f.budgetMax, f.text]).toEqual([undefined, "پاوربانک 50 هزار"]);
+  });
+  it("«هزار تومن» is a budget", () => expect(p("هدفون ۸۰۰ هزار تومن").budgetMax).toBe(800_000));
   it("cheapest sort", () => expect(p("ارزان ترین کابل").sort).toBe("price"));
   it("بازار is not باز", () => expect(p("بازار موبایل").openNow).toBeUndefined());
   it("keeps plain text", () => expect(p("لامپ ال ای دی").text).toBe("لامپ ال ای دی"));
+  it("one-word category stays a search word inside a longer query", () =>
+    expect([p("لوستر کریستال").category, p("لوستر کریستال").text]).toEqual([undefined, "لوستر کریستال"]));
+  it("one-word category alone is a filter", () => expect(p("کریستال")).toMatchObject({ category: "کریستال", text: "" }));
 });

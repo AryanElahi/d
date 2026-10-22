@@ -7,4 +7,5 @@ CREATE INDEX offers_shop ON offers (shop_id);
 CREATE INDEX shops_latlon ON shops (lat, lon);
 CREATE INDEX shops_categories_trgm ON shops USING gin (categories_norm gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS user_reports_offer ON user_reports (offer_id, created_at DESC);
+CREATE INDEX category_hubs_category ON category_hubs (category, rank);
 ANALYZE;

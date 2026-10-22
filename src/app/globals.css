@@ -66,3 +66,5 @@ body {
 }
 .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; padding: 0; }
 .leaflet-container { font-family: Vazirmatn, system-ui, sans-serif; }
+.pin-hub { background: #4338ca; color: white; border-top-color: #4338ca; font-weight: 500; }
+.pin-hub b { font-weight: 800; margin-inline-end: 2px; }

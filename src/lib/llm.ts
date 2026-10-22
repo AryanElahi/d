@@ -103,15 +103,16 @@ Reply with ONLY a JSON object with these keys:
 Infer the product from the need, e.g. «یه چیزی که بشه باهاش جلوی مغازه رو دید» → keywords «دوربین مدار بسته».`;
 }
 
-const cache = new Map<string, LlmOut | null>();
+const cache = new Map<string, unknown>();
 
-export async function askLlm(q: string, vocab: Vocab, fetchImpl: typeof fetch = fetch): Promise<LlmOut | null> {
+// One JSON-returning chat call with timeout and cache; null on any failure.
+async function chatJson<T>(kind: string, system: string, user: string, fetchImpl: typeof fetch): Promise<T | null> {
   if (!llmEnabled()) return null;
-  const key = normalizeFa(q);
-  if (cache.has(key)) return cache.get(key)!;
+  const key = `${kind}:${normalizeFa(user)}`;
+  if (cache.has(key)) return cache.get(key) as T | null;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  let out: LlmOut | null = null;
+  let out: T | null = null;
   try {
     const res = await fetchImpl(`${BASE}/chat/completions`, {
       method: "POST",
@@ -120,14 +121,14 @@ export async function askLlm(q: string, vocab: Vocab, fetchImpl: typeof fetch = 
       body: JSON.stringify({
         model: MODEL,
         temperature: 0,
-        max_tokens: 250,
+        max_tokens: 300,
         messages: [
-          { role: "system", content: prompt(vocab.areas) },
-          { role: "user", content: q },
+          { role: "system", content: system },
+          { role: "user", content: user },
         ],
       }),
     });
-    if (res.ok) out = parseLlmJson((await res.json())?.choices?.[0]?.message?.content ?? "");
+    if (res.ok) out = parseLlmJson((await res.json())?.choices?.[0]?.message?.content ?? "") as T | null;
   } catch {
     out = null; // timeout / network: rules only
   } finally {
@@ -136,4 +137,25 @@ export async function askLlm(q: string, vocab: Vocab, fetchImpl: typeof fetch = 
   if (cache.size > 500) cache.delete(cache.keys().next().value!);
   cache.set(key, out);
   return out;
+}
+
+export function askLlm(q: string, vocab: Vocab, fetchImpl: typeof fetch = fetch): Promise<LlmOut | null> {
+  return chatJson<LlmOut>("query", prompt(vocab.areas), q, fetchImpl);
+}
+
+export type MarketPlace = { name: string; why: string };
+
+const MARKET_PROMPT = `You know Tehran's traditional trade districts («بورس»): which streets, bazaars and malls specialise in which goods.
+Given a product a shopper could not find in our shop list, reply with ONLY JSON: {"places":[{"name":"...","why":"..."}]}
+- name: a well-known Tehran street, bazaar or mall in Persian (e.g. «بازار امین‌السلطان», «خیابان لاله‌زار»)
+- why: one short Persian sentence on what is sold there
+- at most 3 places, only ones you are confident about; {"places":[]} if unsure.`;
+
+// General knowledge, not dataset data: names only, the UI links them to a map search.
+export async function askMarket(product: string, fetchImpl: typeof fetch = fetch): Promise<MarketPlace[]> {
+  const out = await chatJson<{ places?: unknown }>("market", MARKET_PROMPT, product, fetchImpl);
+  const places = Array.isArray(out?.places) ? out.places : [];
+  return places
+    .filter((p): p is MarketPlace => typeof p?.name === "string" && typeof p?.why === "string" && p.name.length <= 60 && p.why.length <= 160)
+    .slice(0, 3);
 }
